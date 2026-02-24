@@ -297,6 +297,15 @@ function renderDebugMailboxPage(mails) {
       color: var(--text-main);
     }
 
+    .mail-detail-frame {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #ffffff;
+      width: 100%;
+      min-height: 430px;
+      height: 100%;
+    }
+
     .empty-state {
       border: 1px dashed #7dd3fc;
       border-radius: 14px;
@@ -365,6 +374,7 @@ function renderDebugMailboxPage(mails) {
           <h2 id="mail-subject">请选择一封邮件</h2>
           <p id="mail-meta" class="mail-detail-meta">点击左侧列表查看邮件详情。</p>
         </header>
+        <iframe id="mail-html-content" class="mail-detail-frame" title="邮件 HTML 预览" sandbox="" referrerpolicy="no-referrer" hidden></iframe>
         <pre id="mail-content" class="mail-detail-body">暂无内容</pre>
       </article>
     </section>
@@ -375,9 +385,168 @@ function renderDebugMailboxPage(mails) {
     const listEl = document.getElementById("mail-list");
     const subjectEl = document.getElementById("mail-subject");
     const metaEl = document.getElementById("mail-meta");
+    const frameEl = document.getElementById("mail-html-content");
     const contentEl = document.getElementById("mail-content");
     const countEl = document.getElementById("mail-count");
     let activeIndex = -1;
+
+    const looksLikeHtml = (value) => {
+      if (typeof value !== "string") return false;
+      return /<(html|body|div|table|p|span|a|img|br|style|meta)\b/i.test(value);
+    };
+
+    const decodeQuotedPrintable = (input) => {
+      if (typeof input !== "string" || input.length === 0) return "";
+      const normalized = input.replace(/=(\r?\n)/g, "");
+      return normalized.replace(/=([A-Fa-f0-9]{2})/g, (_, hex) => {
+        const code = Number.parseInt(hex, 16);
+        if (Number.isNaN(code)) return _;
+        return String.fromCharCode(code);
+      });
+    };
+
+    const decodeBase64 = (input) => {
+      if (typeof input !== "string") return "";
+      const compact = input.replace(/\s+/g, "");
+      if (!compact) return "";
+      try {
+        return atob(compact);
+      } catch {
+        return "";
+      }
+    };
+
+    const splitHeadersAndBody = (input) => {
+      if (typeof input !== "string") {
+        return { headers: "", body: "", hasSeparator: false };
+      }
+      const separator = /\r?\n\r?\n/.exec(input);
+      if (!separator || typeof separator.index !== "number") {
+        return { headers: "", body: input, hasSeparator: false };
+      }
+      const index = separator.index;
+      const length = separator[0].length;
+      return {
+        headers: input.slice(0, index),
+        body: input.slice(index + length),
+        hasSeparator: true
+      };
+    };
+
+    const parseMimeHeaders = (headersText) => {
+      const map = {};
+      if (typeof headersText !== "string" || !headersText.trim()) return map;
+
+      const lines = headersText.replace(/\r/g, "").split("\n");
+      const folded = [];
+      for (const line of lines) {
+        if (!line) continue;
+        if (/^[ \t]/.test(line) && folded.length > 0) {
+          folded[folded.length - 1] += " " + line.trim();
+        } else {
+          folded.push(line.trim());
+        }
+      }
+
+      for (const line of folded) {
+        const sep = line.indexOf(":");
+        if (sep <= 0) continue;
+        const key = line.slice(0, sep).trim().toLowerCase();
+        const value = line.slice(sep + 1).trim();
+        if (!key) continue;
+        if (map[key]) {
+          map[key] += ", " + value;
+        } else {
+          map[key] = value;
+        }
+      }
+      return map;
+    };
+
+    const decodePartBody = (body, headersMap) => {
+      const encoding = String(headersMap["content-transfer-encoding"] || "").toLowerCase();
+      if (encoding.includes("base64")) {
+        return decodeBase64(body) || body;
+      }
+      if (encoding.includes("quoted-printable")) {
+        return decodeQuotedPrintable(body);
+      }
+      return body;
+    };
+
+    const parseMimeEntity = (headersMap, body) => {
+      const type = String(headersMap["content-type"] || "").toLowerCase();
+      if (type.includes("multipart/")) {
+        const boundaryMatch = String(headersMap["content-type"] || "").match(/boundary="?([^";]+)"?/i);
+        if (boundaryMatch && boundaryMatch[1]) {
+          const marker = "--" + boundaryMatch[1];
+          const segments = String(body).split(marker);
+          let html = "";
+          let text = "";
+
+          for (let segment of segments) {
+            segment = segment.trim();
+            if (!segment || segment === "--") continue;
+            if (segment.endsWith("--")) {
+              segment = segment.slice(0, -2).trim();
+            }
+            if (!segment) continue;
+
+            const part = splitHeadersAndBody(segment);
+            const partHeaders = parseMimeHeaders(part.headers);
+            const parsed = parseMimeEntity(partHeaders, part.body);
+            if (!html && parsed.html) html = parsed.html;
+            if (!text && parsed.text) text = parsed.text;
+          }
+          return { html, text };
+        }
+      }
+
+      const decoded = decodePartBody(String(body || ""), headersMap);
+      if (type.includes("text/html")) return { html: decoded, text: "" };
+      if (type.includes("text/plain")) return { html: "", text: decoded };
+      return { html: "", text: decoded };
+    };
+
+    const sanitizeHtml = (html) => {
+      if (typeof html !== "string") return "";
+      return html
+        .replace(/<script\b[\s\S]*?<\/script>/gi, "")
+        .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
+        .replace(/\son\w+\s*=\s*'[^']*'/gi, "");
+    };
+
+    const buildPreviewDocument = (html) => {
+      const safe = sanitizeHtml(html);
+      if (!safe) return "";
+      if (/<html[\s>]/i.test(safe)) return safe;
+      return "<!doctype html><html><head><meta charset=\"utf-8\" /><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" /><base target=\"_blank\" /></head><body>" + safe + "</body></html>";
+    };
+
+    const buildMailPreview = (raw) => {
+      if (typeof raw !== "string" || !raw.trim()) {
+        return { html: "", text: "(邮件内容为空)" };
+      }
+
+      // 纯 HTML 内容直接预览
+      if (looksLikeHtml(raw)) {
+        return { html: buildPreviewDocument(raw), text: raw };
+      }
+
+      const root = splitHeadersAndBody(raw);
+      const rootHeaders = parseMimeHeaders(root.headers);
+      const parsed = parseMimeEntity(rootHeaders, root.body);
+      const htmlBody = String(parsed.html || "").trim();
+      const textBody = String(parsed.text || "").trim();
+
+      if (looksLikeHtml(htmlBody)) {
+        return { html: buildPreviewDocument(htmlBody), text: textBody || raw };
+      }
+      if (textBody) {
+        return { html: "", text: textBody };
+      }
+      return { html: "", text: raw };
+    };
 
     const formatTime = (value) => {
       if (!value) return "未知时间";
@@ -398,7 +567,18 @@ function renderDebugMailboxPage(mails) {
         "发件人：" + (item.source || "未知发件人") +
         "  |  收件人：" + (item.address || "未知收件人") +
         "  |  时间：" + formatTime(item.timestamp);
-      contentEl.textContent = item.content || "(邮件内容为空)";
+      const preview = buildMailPreview(item.content || "");
+      if (preview.html) {
+        frameEl.hidden = false;
+        frameEl.srcdoc = preview.html;
+        contentEl.hidden = true;
+        contentEl.textContent = "";
+      } else {
+        frameEl.hidden = true;
+        frameEl.removeAttribute("srcdoc");
+        contentEl.hidden = false;
+        contentEl.textContent = preview.text || "(邮件内容为空)";
+      }
 
       const nodes = listEl.querySelectorAll(".mail-item");
       nodes.forEach((node, nodeIndex) => {
@@ -419,6 +599,9 @@ function renderDebugMailboxPage(mails) {
         listEl.appendChild(empty);
         subjectEl.textContent = "暂无邮件";
         metaEl.textContent = "当前邮箱还没有收到邮件。";
+        frameEl.hidden = true;
+        frameEl.removeAttribute("srcdoc");
+        contentEl.hidden = false;
         contentEl.textContent = "暂无内容";
         return;
       }
