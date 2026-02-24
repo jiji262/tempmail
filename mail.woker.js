@@ -117,7 +117,7 @@ function normalizeMailRecord(record, index) {
 function renderDebugMailboxPage(mails) {
   const serializedMails = safeJsonForScript(mails);
 
-  return `<!doctype html>
+  return String.raw`<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
@@ -596,7 +596,7 @@ function renderDebugMailboxPage(mails) {
     const sanitizeHtml = (html) => {
       if (typeof html !== "string") return "";
       return html
-        .replace(/<script\b[\s\S]*?<\\/script>/gi, "")
+        .replace(/<script\b[\s\S]*?<\/script>/gi, "")
         .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
         .replace(/\son\w+\s*=\s*'[^']*'/gi, "");
     };
