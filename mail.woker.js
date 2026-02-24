@@ -613,9 +613,15 @@ function renderDebugMailboxPage(mails) {
         return { html: "", text: "(邮件内容为空)" };
       }
 
-      // 纯 HTML 内容直接预览
-      if (looksLikeHtml(raw)) {
-        return { html: buildPreviewDocument(raw), text: raw };
+      // 仅当内容开头就是 HTML 时才直接预览，避免把整封 MIME 原文误当成 HTML。
+      const trimmed = raw.trimStart();
+      const startsWithHtml =
+        /^<!doctype\s+html[\s>]/i.test(trimmed) ||
+        /^<html[\s>]/i.test(trimmed) ||
+        /^<body[\s>]/i.test(trimmed) ||
+        (/^</.test(trimmed) && looksLikeHtml(trimmed));
+      if (startsWithHtml) {
+        return { html: buildPreviewDocument(trimmed), text: raw };
       }
 
       const root = splitHeadersAndBody(raw);
