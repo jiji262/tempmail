@@ -530,6 +530,10 @@ function renderDebugMailboxPage(mails) {
       z-index: 20;
     }
 
+    .auth-overlay[hidden] {
+      display: none !important;
+    }
+
     .auth-card {
       width: 100%;
       max-width: 420px;
