@@ -267,6 +267,34 @@ function renderDebugMailboxPage(mails) {
       animation: spin 0.6s linear infinite;
     }
 
+    .auth-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 7px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text-main);
+      font-family: "Nunito", sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+      white-space: nowrap;
+    }
+
+    .auth-btn:hover {
+      border-color: var(--lavender);
+      color: var(--lavender);
+      background: #FAF5FF;
+    }
+
+    .auth-btn:focus-visible {
+      outline: 2px solid var(--lavender);
+      outline-offset: 2px;
+    }
+
     @keyframes spin {
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
@@ -490,6 +518,86 @@ function renderDebugMailboxPage(mails) {
       display: block;
     }
 
+    .auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.44);
+      backdrop-filter: blur(3px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 20;
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 420px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .auth-card h3 {
+      margin: 0;
+      font-size: 19px;
+      font-family: "Poppins", "Noto Sans SC", "PingFang SC", sans-serif;
+      color: var(--text-main);
+    }
+
+    .auth-tip {
+      margin: 0;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .auth-input {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: "Nunito", "Noto Sans SC", "PingFang SC", sans-serif;
+      font-size: 14px;
+      color: var(--text-main);
+      background: #fff;
+    }
+
+    .auth-input:focus {
+      outline: none;
+      border-color: var(--sky);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+    }
+
+    .auth-error {
+      margin: 0;
+      font-size: 13px;
+      color: #DC2626;
+      min-height: 18px;
+    }
+
+    .auth-submit {
+      border: 1px solid var(--sky);
+      border-radius: 8px;
+      background: var(--sky);
+      color: #fff;
+      font-family: "Nunito", "Noto Sans SC", "PingFang SC", sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      padding: 9px 12px;
+      transition: background 150ms ease, border-color 150ms ease;
+    }
+
+    .auth-submit:hover {
+      background: #0EA5E9;
+      border-color: #0EA5E9;
+    }
+
     @media (max-width: 900px) {
       body {
         padding: 8px;
@@ -536,6 +644,9 @@ function renderDebugMailboxPage(mails) {
       </div>
       <div class="topbar-right">
         <p class="meta">共 <span class="badge" id="mail-count">0</span> 封邮件</p>
+        <button type="button" class="auth-btn" id="auth-reset-btn" title="重新输入密码">
+          重新验证
+        </button>
         <button type="button" class="refresh-btn" id="refresh-btn" title="刷新邮件列表">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
           刷新
@@ -562,10 +673,20 @@ function renderDebugMailboxPage(mails) {
         <pre id="mail-content" class="mail-detail-body">暂无内容</pre>
       </article>
     </section>
+
+    <div id="auth-overlay" class="auth-overlay" hidden>
+      <form id="auth-form" class="auth-card">
+        <h3>请输入管理员密码</h3>
+        <p class="auth-tip">密码仅保存在当前浏览器本地，下次访问自动使用。</p>
+        <input id="auth-input" class="auth-input" type="password" autocomplete="current-password" placeholder="输入 ADMIN_PASSWORD" />
+        <p id="auth-error" class="auth-error" hidden></p>
+        <button class="auth-submit" type="submit">进入收件箱</button>
+      </form>
+    </div>
   </main>
 
   <script>
-    const mails = ${serializedMails};
+    let mails = ${serializedMails};
     const listEl = document.getElementById("mail-list");
     const subjectEl = document.getElementById("mail-subject");
     const metaEl = document.getElementById("mail-meta");
@@ -576,6 +697,14 @@ function renderDebugMailboxPage(mails) {
     const pagerPrev = document.getElementById("pager-prev");
     const pagerNext = document.getElementById("pager-next");
     const pagerInfo = document.getElementById("pager-info");
+    const refreshBtn = document.getElementById("refresh-btn");
+    const authResetBtn = document.getElementById("auth-reset-btn");
+    const authOverlay = document.getElementById("auth-overlay");
+    const authForm = document.getElementById("auth-form");
+    const authInput = document.getElementById("auth-input");
+    const authError = document.getElementById("auth-error");
+    const LOCAL_AUTH_KEY = "tempmail_admin_auth";
+
     let activeIndex = -1;
     const PAGE_SIZE = 10;
     let currentPage = 0;
@@ -843,6 +972,100 @@ function renderDebugMailboxPage(mails) {
       }).format(date);
     };
 
+    const setAuthError = (message) => {
+      if (!message) {
+        authError.hidden = true;
+        authError.textContent = "";
+        return;
+      }
+      authError.hidden = false;
+      authError.textContent = message;
+    };
+
+    const showAuthOverlay = (message = "") => {
+      authOverlay.hidden = false;
+      setAuthError(message);
+      setTimeout(() => authInput.focus(), 0);
+    };
+
+    const hideAuthOverlay = () => {
+      authOverlay.hidden = true;
+      setAuthError("");
+      authInput.value = "";
+    };
+
+    const getStoredAdminAuth = () => {
+      try {
+        return window.localStorage.getItem(LOCAL_AUTH_KEY) || "";
+      } catch {
+        return "";
+      }
+    };
+
+    const setStoredAdminAuth = (value) => {
+      try {
+        window.localStorage.setItem(LOCAL_AUTH_KEY, value);
+      } catch {
+        // Ignore storage failures (private mode, quota, etc).
+      }
+    };
+
+    const clearStoredAdminAuth = () => {
+      try {
+        window.localStorage.removeItem(LOCAL_AUTH_KEY);
+      } catch {
+        // Ignore storage failures.
+      }
+    };
+
+    const fetchProtectedMails = async (adminAuth) => {
+      const response = await fetch("/admin/debug_mails?limit=200", {
+        method: "GET",
+        headers: { "x-admin-auth": adminAuth }
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("AUTH_FAILED");
+      }
+      if (!response.ok) {
+        throw new Error("FETCH_FAILED");
+      }
+
+      const payload = await response.json();
+      return Array.isArray(payload?.results) ? payload.results : [];
+    };
+
+    const loadProtectedMails = async (adminAuth, selectFirst = true) => {
+      refreshBtn.classList.add("spinning");
+      refreshBtn.disabled = true;
+
+      try {
+        const results = await fetchProtectedMails(adminAuth);
+        mails = results;
+        currentPage = 0;
+        activeIndex = -1;
+        renderPage(selectFirst);
+        hideAuthOverlay();
+        return true;
+      } catch (error) {
+        mails = [];
+        currentPage = 0;
+        activeIndex = -1;
+        renderPage(false);
+
+        if (error instanceof Error && error.message === "AUTH_FAILED") {
+          clearStoredAdminAuth();
+          showAuthOverlay("密码错误或已失效，请重新输入。");
+        } else {
+          showAuthOverlay("加载邮件失败，请稍后重试。");
+        }
+        return false;
+      } finally {
+        refreshBtn.classList.remove("spinning");
+        refreshBtn.disabled = false;
+      }
+    };
+
     const renderActive = (index) => {
       if (!Array.isArray(mails) || !mails[index]) return;
       activeIndex = index;
@@ -971,14 +1194,46 @@ function renderDebugMailboxPage(mails) {
       }
     });
 
-    const refreshBtn = document.getElementById("refresh-btn");
-    refreshBtn.addEventListener("click", () => {
-      refreshBtn.classList.add("spinning");
-      refreshBtn.disabled = true;
-      window.location.reload();
+    refreshBtn.addEventListener("click", async () => {
+      const storedAuth = getStoredAdminAuth();
+      if (!storedAuth) {
+        showAuthOverlay("请输入管理员密码以查看邮件。");
+        return;
+      }
+      await loadProtectedMails(storedAuth, true);
     });
 
-    renderPage(true);
+    authResetBtn.addEventListener("click", () => {
+      clearStoredAdminAuth();
+      showAuthOverlay("已清除本地密码，请重新输入。");
+    });
+
+    authForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const password = authInput.value.trim();
+      if (!password) {
+        setAuthError("请输入管理员密码。");
+        authInput.focus();
+        return;
+      }
+
+      const ok = await loadProtectedMails(password, true);
+      if (ok) {
+        setStoredAdminAuth(password);
+      }
+    });
+
+    const bootstrap = async () => {
+      renderPage(false);
+      const storedAuth = getStoredAdminAuth();
+      if (!storedAuth) {
+        showAuthOverlay("请输入管理员密码以查看邮件。");
+        return;
+      }
+      await loadProtectedMails(storedAuth, true);
+    };
+
+    bootstrap();
   </script>
 </body>
 </html>`;
@@ -1091,24 +1346,43 @@ async function handleListMails(request, env) {
   return jsonResponse({ results });
 }
 
-async function handleDebugList(request, env) {
-  // Optional debugging endpoint.
-  const url = new URL(request.url);
-  const limit = parsePositiveInt(url.searchParams.get("limit"), 20, 1, 100);
+async function queryDebugMails(env, limit, offset) {
+  const safeLimit = parsePositiveInt(limit, 20, 1, 500);
+  const safeOffset = parsePositiveInt(offset, 0, 0, 100000);
   const query = await env.DB.prepare(
     `
       SELECT id, source, address, subject, content, timestamp
       FROM emails
       ORDER BY timestamp DESC
-      LIMIT ?
+      LIMIT ? OFFSET ?
     `
   )
-    .bind(limit)
+    .bind(safeLimit, safeOffset)
     .all();
 
   const results = Array.isArray(query?.results) ? query.results : [];
-  const mails = results.map((record, index) => normalizeMailRecord(record, index));
-  return htmlResponse(renderDebugMailboxPage(mails));
+  return results.map((record, index) => normalizeMailRecord(record, index));
+}
+
+async function handleDebugListPage() {
+  // Home page is now an auth-gated shell; mails are fetched after password verification.
+  return htmlResponse(renderDebugMailboxPage([]));
+}
+
+async function handleAdminDebugMails(request, env) {
+  const adminAuth = request.headers.get("x-admin-auth") || "";
+  if (!env.ADMIN_PASSWORD) {
+    return jsonResponse({ error: "server misconfigured: ADMIN_PASSWORD missing" }, 500);
+  }
+  if (adminAuth !== env.ADMIN_PASSWORD) {
+    return forbidden("invalid admin auth");
+  }
+
+  const url = new URL(request.url);
+  const limit = url.searchParams.get("limit");
+  const offset = url.searchParams.get("offset");
+  const results = await queryDebugMails(env, limit, offset);
+  return jsonResponse({ results });
 }
 
 async function persistInboundEmail(message, env) {
@@ -1153,8 +1427,11 @@ export default {
       if (method === "GET" && path === "/api/mails") {
         return handleListMails(request, env);
       }
+      if (method === "GET" && path === "/admin/debug_mails") {
+        return handleAdminDebugMails(request, env);
+      }
       if (method === "GET" && path === "/") {
-        return handleDebugList(request, env);
+        return handleDebugListPage();
       }
       return jsonResponse({ error: "not found" }, 404);
     } catch (err) {
