@@ -1,0 +1,19 @@
+name = "tempmail"
+main = "mail.woker.js"
+compatibility_date = "2026-02-24"
+workers_dev = true
+
+# 非敏感环境变量
+[vars]
+EMAIL_DOMAIN = "teamupper.tech"
+TOKEN_TTL_SECONDS = "604800"
+
+# D1 绑定（将 database_id 替换为你自己的 D1 ID）
+[[d1_databases]]
+binding = "DB"
+database_name = "tempmail"
+database_id = "1ef4ca13-f894-415c-8c87-1f375bc635cf"
+migrations_dir = "migrations"
+
+# 敏感变量请不要写入仓库，使用 secret 注入：
+# npx wrangler secret put ADMIN_PASSWORD
