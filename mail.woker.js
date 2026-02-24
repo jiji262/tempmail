@@ -426,8 +426,8 @@ function renderDebugMailboxPage(mails) {
     .mail-detail {
       background: var(--surface);
       padding: 22px 24px;
-      display: grid;
-      grid-template-rows: auto auto 1fr;
+      display: flex;
+      flex-direction: column;
       gap: 14px;
       min-height: 0;
       overflow: hidden;
@@ -461,6 +461,8 @@ function renderDebugMailboxPage(mails) {
       margin: 0;
       line-height: 1.65;
       color: var(--text-main);
+      flex: 1;
+      min-height: 0;
     }
 
     .mail-detail-frame {
@@ -468,8 +470,8 @@ function renderDebugMailboxPage(mails) {
       border-radius: 10px;
       background: #ffffff;
       width: 100%;
+      flex: 1;
       min-height: 0;
-      height: 100%;
     }
 
     .empty-state {
