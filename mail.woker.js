@@ -680,7 +680,7 @@ function renderDebugMailboxPage(mails) {
         <p class="auth-tip">密码仅保存在当前浏览器本地，下次访问自动使用。</p>
         <input id="auth-input" class="auth-input" type="password" autocomplete="current-password" placeholder="输入 ADMIN_PASSWORD" />
         <p id="auth-error" class="auth-error" hidden></p>
-        <button class="auth-submit" type="submit">进入收件箱</button>
+        <button id="auth-submit-btn" class="auth-submit" type="submit">进入收件箱</button>
       </form>
     </div>
   </main>
@@ -703,11 +703,13 @@ function renderDebugMailboxPage(mails) {
     const authForm = document.getElementById("auth-form");
     const authInput = document.getElementById("auth-input");
     const authError = document.getElementById("auth-error");
+    const authSubmitBtn = document.getElementById("auth-submit-btn");
     const LOCAL_AUTH_KEY = "tempmail_admin_auth";
 
     let activeIndex = -1;
     const PAGE_SIZE = 10;
     let currentPage = 0;
+    let authRequestInFlight = false;
 
     const looksLikeHtml = (value) => {
       if (typeof value !== "string") return false;
@@ -983,6 +985,10 @@ function renderDebugMailboxPage(mails) {
     };
 
     const showAuthOverlay = (message = "") => {
+      const sameVisibleMessage =
+        !authOverlay.hidden &&
+        String(authError.textContent || "") === String(message || "");
+      if (sameVisibleMessage) return;
       authOverlay.hidden = false;
       setAuthError(message);
       setTimeout(() => authInput.focus(), 0);
@@ -1036,8 +1042,13 @@ function renderDebugMailboxPage(mails) {
     };
 
     const loadProtectedMails = async (adminAuth, selectFirst = true) => {
+      if (authRequestInFlight) {
+        return false;
+      }
+      authRequestInFlight = true;
       refreshBtn.classList.add("spinning");
       refreshBtn.disabled = true;
+      authSubmitBtn.disabled = true;
 
       try {
         const results = await fetchProtectedMails(adminAuth);
@@ -1061,8 +1072,10 @@ function renderDebugMailboxPage(mails) {
         }
         return false;
       } finally {
+        authRequestInFlight = false;
         refreshBtn.classList.remove("spinning");
         refreshBtn.disabled = false;
+        authSubmitBtn.disabled = false;
       }
     };
 
@@ -1197,7 +1210,9 @@ function renderDebugMailboxPage(mails) {
     refreshBtn.addEventListener("click", async () => {
       const storedAuth = getStoredAdminAuth();
       if (!storedAuth) {
-        showAuthOverlay("请输入管理员密码以查看邮件。");
+        if (authOverlay.hidden) {
+          showAuthOverlay("请输入管理员密码以查看邮件。");
+        }
         return;
       }
       await loadProtectedMails(storedAuth, true);
@@ -1210,6 +1225,7 @@ function renderDebugMailboxPage(mails) {
 
     authForm.addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (authRequestInFlight) return;
       const password = authInput.value.trim();
       if (!password) {
         setAuthError("请输入管理员密码。");
