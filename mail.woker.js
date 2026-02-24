@@ -511,7 +511,7 @@ function renderDebugMailboxPage(mails) {
     const sanitizeHtml = (html) => {
       if (typeof html !== "string") return "";
       return html
-        .replace(/<script\b[\s\S]*?<\/script>/gi, "")
+        .replace(/<script\b[\s\S]*?<\\/script>/gi, "")
         .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
         .replace(/\son\w+\s*=\s*'[^']*'/gi, "");
     };
