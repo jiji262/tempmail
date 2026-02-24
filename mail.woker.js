@@ -128,21 +128,21 @@ function renderDebugMailboxPage(mails) {
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --pink: #FF6B9D;
-      --coral: #FF8A5C;
-      --yellow: #FFD93D;
-      --mint: #6BCB77;
-      --sky: #4DA8FF;
+      --pink: #F472B6;
+      --coral: #FB923C;
+      --yellow: #FBBF24;
+      --mint: #34D399;
+      --sky: #38BDF8;
       --lavender: #A78BFA;
-      --background: #FFF8F0;
-      --surface: rgba(255, 255, 255, 0.92);
-      --surface-strong: #ffffff;
-      --text-main: #2D3047;
-      --text-muted: #6B7094;
-      --border: rgba(167, 139, 250, 0.2);
-      --active-bg: linear-gradient(135deg, #FFF0F5, #F0F0FF);
-      --active-border: var(--lavender);
-      --shadow: 0 16px 40px rgba(167, 139, 250, 0.14), 0 4px 12px rgba(255, 107, 157, 0.08);
+      --background: #F8FAFC;
+      --surface: #ffffff;
+      --surface-alt: #F1F5F9;
+      --text-main: #1E293B;
+      --text-muted: #64748B;
+      --border: #E2E8F0;
+      --active-bg: #EFF6FF;
+      --active-border: #38BDF8;
+      --shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
     }
 
     * {
@@ -152,36 +152,35 @@ function renderDebugMailboxPage(mails) {
     body {
       margin: 0;
       font-family: "Nunito", "Noto Sans SC", "PingFang SC", sans-serif;
-      background:
-        radial-gradient(ellipse at 10% -10%, rgba(255, 107, 157, 0.2), transparent 50%),
-        radial-gradient(ellipse at 90% 0%, rgba(77, 168, 255, 0.18), transparent 45%),
-        radial-gradient(ellipse at 50% 100%, rgba(255, 217, 61, 0.12), transparent 50%),
-        var(--background);
+      background: var(--background);
       color: var(--text-main);
       min-height: 100vh;
-      padding: 20px;
+      padding: 16px;
     }
 
     .mail-app {
-      max-width: 1200px;
+      max-width: 1280px;
       margin: 0 auto;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 28px;
+      border-radius: 16px;
       box-shadow: var(--shadow);
       overflow: hidden;
-      backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 32px);
     }
 
     .topbar {
-      padding: 20px 24px;
+      padding: 16px 24px;
       border-bottom: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
-      background: linear-gradient(135deg, rgba(255, 107, 157, 0.1), rgba(77, 168, 255, 0.08), rgba(255, 217, 61, 0.1));
+      background: var(--surface);
+      flex-shrink: 0;
     }
 
     .topbar-left {
@@ -193,13 +192,10 @@ function renderDebugMailboxPage(mails) {
     .topbar h1 {
       margin: 0;
       font-family: "Poppins", "Noto Sans SC", "PingFang SC", sans-serif;
-      font-size: clamp(22px, 3vw, 28px);
+      font-size: clamp(20px, 3vw, 26px);
       line-height: 1.2;
       letter-spacing: 0.2px;
-      background: linear-gradient(135deg, var(--pink), var(--lavender), var(--sky));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      color: var(--sky);
     }
 
     .topbar-right {
@@ -215,32 +211,45 @@ function renderDebugMailboxPage(mails) {
       white-space: nowrap;
     }
 
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 22px;
+      height: 22px;
+      padding: 0 7px;
+      border-radius: 11px;
+      background: var(--pink);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
     .refresh-btn {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 8px 18px;
-      border: none;
-      border-radius: 12px;
-      background: linear-gradient(135deg, var(--sky), var(--lavender));
+      padding: 7px 16px;
+      border: 1px solid var(--sky);
+      border-radius: 8px;
+      background: var(--sky);
       color: #ffffff;
       font-family: "Nunito", sans-serif;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
       cursor: pointer;
-      transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
-      box-shadow: 0 4px 14px rgba(77, 168, 255, 0.3);
+      transition: background 150ms ease, box-shadow 150ms ease;
       white-space: nowrap;
     }
 
     .refresh-btn:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(77, 168, 255, 0.4);
+      background: #0EA5E9;
+      border-color: #0EA5E9;
     }
 
     .refresh-btn:active {
-      transform: translateY(0);
-      box-shadow: 0 2px 8px rgba(77, 168, 255, 0.3);
+      background: #0284C7;
+      border-color: #0284C7;
     }
 
     .refresh-btn:focus-visible {
@@ -250,9 +259,8 @@ function renderDebugMailboxPage(mails) {
 
     .refresh-btn .icon {
       display: inline-block;
-      width: 16px;
-      height: 16px;
-      transition: transform 400ms ease;
+      width: 14px;
+      height: 14px;
     }
 
     .refresh-btn.spinning .icon {
@@ -266,25 +274,31 @@ function renderDebugMailboxPage(mails) {
 
     .layout {
       display: grid;
-      grid-template-columns: minmax(280px, 360px) 1fr;
-      min-height: 68vh;
+      grid-template-columns: minmax(280px, 380px) 1fr;
+      flex: 1;
+      min-height: 0;
     }
 
     .mail-list-panel {
       border-right: 1px solid var(--border);
-      background: rgba(255, 248, 240, 0.6);
+      background: var(--surface-alt);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
     }
 
     .mail-list {
-      padding: 14px;
-      display: grid;
-      gap: 10px;
-      max-height: calc(68vh - 10px);
-      overflow: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
     }
 
     .mail-list::-webkit-scrollbar {
-      width: 6px;
+      width: 5px;
     }
 
     .mail-list::-webkit-scrollbar-track {
@@ -292,22 +306,68 @@ function renderDebugMailboxPage(mails) {
     }
 
     .mail-list::-webkit-scrollbar-thumb {
-      background: rgba(167, 139, 250, 0.25);
+      background: #CBD5E1;
       border-radius: 3px;
+    }
+
+    .pager {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .pager-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text-main);
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 150ms ease, border-color 150ms ease;
+    }
+
+    .pager-btn:hover:not(:disabled) {
+      background: var(--surface-alt);
+      border-color: var(--sky);
+      color: var(--sky);
+    }
+
+    .pager-btn:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    .pager-info {
+      min-width: 80px;
+      text-align: center;
+      font-weight: 600;
     }
 
     .mail-item {
       width: 100%;
       text-align: left;
-      border: 1.5px solid transparent;
-      border-radius: 16px;
-      background: var(--surface-strong);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
       cursor: pointer;
-      padding: 14px 16px;
+      padding: 12px 14px;
       color: var(--text-main);
-      transition: border-color 200ms ease, background 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+      transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
       position: relative;
       overflow: hidden;
+      flex-shrink: 0;
     }
 
     .mail-item::before {
@@ -316,45 +376,35 @@ function renderDebugMailboxPage(mails) {
       left: 0;
       top: 0;
       bottom: 0;
-      width: 4px;
-      border-radius: 4px 0 0 4px;
+      width: 3px;
       background: transparent;
-      transition: background 200ms ease;
     }
 
-    .mail-item:nth-child(5n+1)::before { background: var(--pink); opacity: 0; transition: opacity 200ms ease; }
-    .mail-item:nth-child(5n+2)::before { background: var(--coral); opacity: 0; transition: opacity 200ms ease; }
-    .mail-item:nth-child(5n+3)::before { background: var(--yellow); opacity: 0; transition: opacity 200ms ease; }
-    .mail-item:nth-child(5n+4)::before { background: var(--mint); opacity: 0; transition: opacity 200ms ease; }
-    .mail-item:nth-child(5n+5)::before { background: var(--sky); opacity: 0; transition: opacity 200ms ease; }
-
-    .mail-item:hover::before,
-    .mail-item.active::before {
-      opacity: 1;
-    }
+    .mail-item:nth-child(5n+1)::before { background: var(--pink); }
+    .mail-item:nth-child(5n+2)::before { background: var(--coral); }
+    .mail-item:nth-child(5n+3)::before { background: var(--yellow); }
+    .mail-item:nth-child(5n+4)::before { background: var(--mint); }
+    .mail-item:nth-child(5n+5)::before { background: var(--sky); }
 
     .mail-item:hover {
-      border-color: rgba(167, 139, 250, 0.3);
-      box-shadow: 0 6px 18px rgba(167, 139, 250, 0.1);
-      transform: translateX(2px);
+      border-color: var(--sky);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     }
 
     .mail-item:focus-visible {
-      outline: 2px solid var(--lavender);
+      outline: 2px solid var(--sky);
       outline-offset: 1px;
     }
 
     .mail-item.active {
-      background: linear-gradient(135deg, #FFF0F5, #F0F0FF);
-      border-color: var(--lavender);
-      box-shadow: 0 6px 20px rgba(167, 139, 250, 0.15);
-      transform: translateX(2px);
+      background: var(--active-bg);
+      border-color: var(--active-border);
     }
 
     .mail-item-subject {
       display: block;
-      margin: 0 0 8px;
-      font-size: 15px;
+      margin: 0 0 6px;
+      font-size: 14px;
       line-height: 1.35;
       font-weight: 700;
       color: var(--text-main);
@@ -374,17 +424,19 @@ function renderDebugMailboxPage(mails) {
     }
 
     .mail-detail {
-      background: linear-gradient(180deg, #FEFCFF, #F8F6FF);
+      background: var(--surface);
       padding: 22px 24px;
       display: grid;
       grid-template-rows: auto auto 1fr;
       gap: 14px;
+      min-height: 0;
+      overflow: hidden;
     }
 
     .mail-detail-header h2 {
-      margin: 0 0 10px;
+      margin: 0 0 8px;
       font-family: "Poppins", "Noto Sans SC", "PingFang SC", sans-serif;
-      font-size: clamp(19px, 2.5vw, 24px);
+      font-size: clamp(18px, 2.5vw, 22px);
       line-height: 1.3;
       color: var(--text-main);
       word-break: break-word;
@@ -399,10 +451,10 @@ function renderDebugMailboxPage(mails) {
     }
 
     .mail-detail-body {
-      border: 1.5px solid var(--border);
-      border-radius: 16px;
-      background: #ffffff;
-      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface-alt);
+      padding: 16px;
       overflow: auto;
       font-family: "Nunito", "Noto Sans SC", "PingFang SC", sans-serif;
       white-space: pre-wrap;
@@ -412,59 +464,47 @@ function renderDebugMailboxPage(mails) {
     }
 
     .mail-detail-frame {
-      border: 1.5px solid var(--border);
-      border-radius: 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
       background: #ffffff;
       width: 100%;
-      min-height: 430px;
+      min-height: 0;
       height: 100%;
     }
 
     .empty-state {
-      border: 2px dashed rgba(167, 139, 250, 0.3);
-      border-radius: 16px;
-      padding: 28px 20px;
-      background: linear-gradient(135deg, #FFF8F0, #F8F0FF);
+      border: 1px dashed #CBD5E1;
+      border-radius: 10px;
+      padding: 32px 20px;
+      background: var(--surface);
       text-align: center;
       font-size: 14px;
       color: var(--text-muted);
     }
 
     .empty-state-icon {
-      font-size: 36px;
+      font-size: 32px;
       margin-bottom: 8px;
       display: block;
     }
 
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 24px;
-      height: 24px;
-      padding: 0 8px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, var(--pink), var(--coral));
-      color: #fff;
-      font-size: 12px;
-      font-weight: 800;
-    }
-
     @media (max-width: 900px) {
       body {
-        padding: 12px;
+        padding: 8px;
       }
 
       .mail-app {
-        border-radius: 20px;
+        border-radius: 12px;
+        height: calc(100vh - 16px);
       }
 
       .topbar {
-        padding: 16px;
+        padding: 12px 16px;
       }
 
       .layout {
         grid-template-columns: 1fr;
+        grid-template-rows: minmax(200px, 2fr) 3fr;
       }
 
       .mail-list-panel {
@@ -472,12 +512,7 @@ function renderDebugMailboxPage(mails) {
         border-bottom: 1px solid var(--border);
       }
 
-      .mail-list {
-        max-height: 42vh;
-      }
-
       .mail-detail {
-        min-height: 42vh;
         padding: 16px;
       }
     }
@@ -509,6 +544,11 @@ function renderDebugMailboxPage(mails) {
     <section class="layout" aria-label="邮件列表与详情">
       <aside class="mail-list-panel">
         <div id="mail-list" class="mail-list" role="listbox" aria-label="邮件列表"></div>
+        <div id="pager" class="pager" hidden>
+          <button type="button" class="pager-btn" id="pager-prev" title="上一页" disabled>&lsaquo;</button>
+          <span class="pager-info" id="pager-info">1 / 1</span>
+          <button type="button" class="pager-btn" id="pager-next" title="下一页" disabled>&rsaquo;</button>
+        </div>
       </aside>
 
       <article class="mail-detail" aria-live="polite">
@@ -530,7 +570,13 @@ function renderDebugMailboxPage(mails) {
     const frameEl = document.getElementById("mail-html-content");
     const contentEl = document.getElementById("mail-content");
     const countEl = document.getElementById("mail-count");
+    const pagerEl = document.getElementById("pager");
+    const pagerPrev = document.getElementById("pager-prev");
+    const pagerNext = document.getElementById("pager-next");
+    const pagerInfo = document.getElementById("pager-info");
     let activeIndex = -1;
+    const PAGE_SIZE = 10;
+    let currentPage = 0;
 
     const looksLikeHtml = (value) => {
       if (typeof value !== "string") return false;
@@ -822,19 +868,39 @@ function renderDebugMailboxPage(mails) {
         contentEl.textContent = preview.text || "(邮件内容为空)";
       }
 
+      const pageStart = currentPage * PAGE_SIZE;
       const nodes = listEl.querySelectorAll(".mail-item");
       nodes.forEach((node, nodeIndex) => {
-        const isActive = nodeIndex === index;
+        const isActive = (pageStart + nodeIndex) === index;
         node.classList.toggle("active", isActive);
         node.setAttribute("aria-selected", isActive ? "true" : "false");
       });
     };
 
-    const renderList = () => {
-      listEl.innerHTML = "";
-      countEl.textContent = String(Array.isArray(mails) ? mails.length : 0);
+    const totalPages = () => {
+      if (!Array.isArray(mails) || mails.length === 0) return 0;
+      return Math.ceil(mails.length / PAGE_SIZE);
+    };
 
-      if (!Array.isArray(mails) || mails.length === 0) {
+    const updatePager = () => {
+      const pages = totalPages();
+      if (pages <= 1) {
+        pagerEl.hidden = true;
+        return;
+      }
+      pagerEl.hidden = false;
+      pagerPrev.disabled = currentPage <= 0;
+      pagerNext.disabled = currentPage >= pages - 1;
+      pagerInfo.textContent = (currentPage + 1) + " / " + pages;
+    };
+
+    const renderPage = (selectFirst) => {
+      listEl.innerHTML = "";
+      const total = Array.isArray(mails) ? mails.length : 0;
+      countEl.textContent = String(total);
+
+      if (total === 0) {
+        pagerEl.hidden = true;
         const empty = document.createElement("div");
         empty.className = "empty-state";
         empty.innerHTML = '<span class="empty-state-icon">📭</span>暂无邮件，点击右上角刷新按钮查看新邮件。';
@@ -848,7 +914,12 @@ function renderDebugMailboxPage(mails) {
         return;
       }
 
-      mails.forEach((mail, index) => {
+      const start = currentPage * PAGE_SIZE;
+      const end = Math.min(start + PAGE_SIZE, total);
+      const pageMails = mails.slice(start, end);
+
+      pageMails.forEach((mail, i) => {
+        const globalIndex = start + i;
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "mail-item";
@@ -870,18 +941,33 @@ function renderDebugMailboxPage(mails) {
         btn.appendChild(subject);
         btn.appendChild(from);
         btn.appendChild(time);
-        btn.addEventListener("click", () => renderActive(index));
+        btn.addEventListener("click", () => renderActive(globalIndex));
         btn.addEventListener("keydown", (event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            renderActive(index);
+            renderActive(globalIndex);
           }
         });
         listEl.appendChild(btn);
       });
 
-      renderActive(0);
+      updatePager();
+      if (selectFirst) renderActive(start);
     };
+
+    pagerPrev.addEventListener("click", () => {
+      if (currentPage > 0) {
+        currentPage--;
+        renderPage(true);
+      }
+    });
+
+    pagerNext.addEventListener("click", () => {
+      if (currentPage < totalPages() - 1) {
+        currentPage++;
+        renderPage(true);
+      }
+    });
 
     const refreshBtn = document.getElementById("refresh-btn");
     refreshBtn.addEventListener("click", () => {
@@ -890,7 +976,7 @@ function renderDebugMailboxPage(mails) {
       window.location.reload();
     });
 
-    renderList();
+    renderPage(true);
   </script>
 </body>
 </html>`;
