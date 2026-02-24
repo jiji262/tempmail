@@ -17,3 +17,8 @@ migrations_dir = "migrations"
 
 # 敏感变量请不要写入仓库，使用 secret 注入：
 # npx wrangler secret put ADMIN_PASSWORD
+
+[observability]
+[observability.logs]
+enabled = true
+invocation_logs = true

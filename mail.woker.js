@@ -405,6 +405,73 @@ function renderDebugMailboxPage(mails) {
       });
     };
 
+    const parseCharset = (headersMap) => {
+      const contentTypeRaw = String(headersMap["content-type"] || "");
+      const charsetMatch = contentTypeRaw.match(/charset\s*=\s*(?:"([^"]+)"|'([^']+)'|([^;]+))/i);
+      let charset = (charsetMatch?.[1] || charsetMatch?.[2] || charsetMatch?.[3] || "utf-8").trim().toLowerCase();
+      if (!charset) return "utf-8";
+      if (charset === "utf8") return "utf-8";
+      if (charset === "gb2312") return "gbk";
+      return charset;
+    };
+
+    const bytesToText = (bytes, charset) => {
+      const preferred = [];
+      if (charset) preferred.push(charset);
+      if (!preferred.includes("utf-8")) preferred.push("utf-8");
+      if (!preferred.includes("gbk")) preferred.push("gbk");
+      if (!preferred.includes("gb18030")) preferred.push("gb18030");
+      if (!preferred.includes("big5")) preferred.push("big5");
+      if (!preferred.includes("iso-8859-1")) preferred.push("iso-8859-1");
+
+      for (const candidate of preferred) {
+        try {
+          return new TextDecoder(candidate, { fatal: false }).decode(bytes);
+        } catch {
+          // Skip unsupported charset names in the current runtime.
+        }
+      }
+
+      let text = "";
+      for (const value of bytes) text += String.fromCharCode(value);
+      return text;
+    };
+
+    const decodeBase64ToBytes = (input) => {
+      if (typeof input !== "string") return new Uint8Array();
+      const compact = input.replace(/\s+/g, "");
+      if (!compact) return new Uint8Array();
+      try {
+        const binary = atob(compact);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i) & 0xff;
+        }
+        return bytes;
+      } catch {
+        return new Uint8Array();
+      }
+    };
+
+    const decodeQuotedPrintableToBytes = (input) => {
+      if (typeof input !== "string" || input.length === 0) return new Uint8Array();
+      const normalized = input.replace(/=(\r?\n)/g, "");
+      const bytes = [];
+      for (let i = 0; i < normalized.length; i++) {
+        const current = normalized[i];
+        if (current === "=" && i + 2 < normalized.length) {
+          const hex = normalized.slice(i + 1, i + 3);
+          if (/^[A-Fa-f0-9]{2}$/.test(hex)) {
+            bytes.push(Number.parseInt(hex, 16));
+            i += 2;
+            continue;
+          }
+        }
+        bytes.push(normalized.charCodeAt(i) & 0xff);
+      }
+      return new Uint8Array(bytes);
+    };
+
     const decodeBase64 = (input) => {
       if (typeof input !== "string") return "";
       const compact = input.replace(/\s+/g, "");
@@ -465,21 +532,28 @@ function renderDebugMailboxPage(mails) {
 
     const decodePartBody = (body, headersMap) => {
       const encoding = String(headersMap["content-transfer-encoding"] || "").toLowerCase();
+      const charset = parseCharset(headersMap);
       if (encoding.includes("base64")) {
+        const bytes = decodeBase64ToBytes(body);
+        if (bytes.length > 0) return bytesToText(bytes, charset);
         return decodeBase64(body) || body;
       }
       if (encoding.includes("quoted-printable")) {
+        const bytes = decodeQuotedPrintableToBytes(body);
+        if (bytes.length > 0) return bytesToText(bytes, charset);
         return decodeQuotedPrintable(body);
       }
       return body;
     };
 
     const parseMimeEntity = (headersMap, body) => {
-      const type = String(headersMap["content-type"] || "").toLowerCase();
+      const contentTypeRaw = String(headersMap["content-type"] || "");
+      const type = contentTypeRaw.toLowerCase();
       if (type.includes("multipart/")) {
-        const boundaryMatch = String(headersMap["content-type"] || "").match(/boundary="?([^";]+)"?/i);
-        if (boundaryMatch && boundaryMatch[1]) {
-          const marker = "--" + boundaryMatch[1];
+        const boundaryMatch = contentTypeRaw.match(/boundary\s*=\s*(?:"([^"]+)"|'([^']+)'|([^;]+))/i);
+        const boundary = (boundaryMatch?.[1] || boundaryMatch?.[2] || boundaryMatch?.[3] || "").trim();
+        if (boundary) {
+          const marker = "--" + boundary;
           const segments = String(body).split(marker);
           let html = "";
           let text = "";
@@ -506,6 +580,17 @@ function renderDebugMailboxPage(mails) {
       if (type.includes("text/html")) return { html: decoded, text: "" };
       if (type.includes("text/plain")) return { html: "", text: decoded };
       return { html: "", text: decoded };
+    };
+
+    const extractInlineHtml = (raw) => {
+      if (typeof raw !== "string") return "";
+      const doctypeMatch = raw.match(/<!doctype\s+html[\s\S]*$/i);
+      if (doctypeMatch?.[0] && looksLikeHtml(doctypeMatch[0])) return doctypeMatch[0];
+      const htmlMatch = raw.match(/<html[\s\S]*<\/html>/i);
+      if (htmlMatch?.[0]) return htmlMatch[0];
+      const bodyMatch = raw.match(/<body[\s\S]*<\/body>/i);
+      if (bodyMatch?.[0]) return bodyMatch[0];
+      return "";
     };
 
     const sanitizeHtml = (html) => {
@@ -538,9 +623,13 @@ function renderDebugMailboxPage(mails) {
       const parsed = parseMimeEntity(rootHeaders, root.body);
       const htmlBody = String(parsed.html || "").trim();
       const textBody = String(parsed.text || "").trim();
+      const inlineHtml = extractInlineHtml(raw);
 
       if (looksLikeHtml(htmlBody)) {
         return { html: buildPreviewDocument(htmlBody), text: textBody || raw };
+      }
+      if (looksLikeHtml(inlineHtml)) {
+        return { html: buildPreviewDocument(inlineHtml), text: textBody || raw };
       }
       if (textBody) {
         return { html: "", text: textBody };
@@ -567,7 +656,12 @@ function renderDebugMailboxPage(mails) {
         "发件人：" + (item.source || "未知发件人") +
         "  |  收件人：" + (item.address || "未知收件人") +
         "  |  时间：" + formatTime(item.timestamp);
-      const preview = buildMailPreview(item.content || "");
+      let preview = { html: "", text: item.content || "(邮件内容为空)" };
+      try {
+        preview = buildMailPreview(item.content || "");
+      } catch {
+        preview = { html: "", text: item.content || "(邮件内容为空)" };
+      }
       if (preview.html) {
         frameEl.hidden = false;
         frameEl.srcdoc = preview.html;
